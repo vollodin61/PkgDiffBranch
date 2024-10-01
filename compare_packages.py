@@ -5,7 +5,6 @@ from typing import Optional
 
 import click
 import rpm
-import asyncio
 from aiohttp import ClientSession, ClientError
 from environs import Env
 
@@ -101,3 +100,43 @@ def compare_package_lists(packages1: list[dict[str, str]], packages2: list[dict[
             diff["in_sisyphus_not_in_p10"].append(f"{pkg_name}-{version}")
 
     return diff
+
+
+@click.command()
+@click.option('--url', default=API_URL, help='Base API URL.')
+@click.option('--branch1', default='sisyphus', help='First branch to compare.')
+@click.option('--branch2', default='p10', help='Second branch to compare.')
+@click.option('--arch', default='x86_64', help='Package architecture to filter.')
+@click.option('--output', default='json', help='Output format (json or file).')
+@click.option('--output-file', default=None, type=click.Path(), help='Optional output to a JSON file.')
+def compare_packages(url: str, branch1: str, branch2: str, arch: str, output: str, output_file: Optional[str]):
+    """
+    Создание cli-утилиты для сравнения пакетов между двумя ветвями.
+
+    :param url: Базовый URL для API.
+    :param branch1: Первая ветка для сравнения.
+    :param branch2: Вторая ветка для сравнения.
+    :param arch: Архитектура пакетов.
+    :param output: Формат вывода (json или файл).
+    :param output_file: Опциональный файл для вывода JSON.
+    """
+    try:
+        branch1_packages, branch2_packages = asyncio.run(get_packages_data(url, branch1, branch2, arch))
+        comparison_result = compare_package_lists(branch1_packages, branch2_packages)
+
+        if output == 'json':
+            result = json.dumps(comparison_result, indent=4)
+            if output_file:
+                with open(output_file, 'w') as f:
+                    f.write(result)
+                print(f"Result written to {output_file}")
+            else:
+                print(result)
+        else:
+            print("Unsupported output format. Please use 'json'.")
+    except Exception as e:
+        print(f"Произошла ошибка: {e}")
+
+
+if __name__ == "__main__":
+    compare_packages()
