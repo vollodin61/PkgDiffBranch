@@ -1,7 +1,7 @@
 import pytest
 from aiohttp import ClientError
 
-from compare_packages import get_packages_data  # Импортируем функцию, которую тестируем
+from compare_pkg.compare_packages import get_packages_data  # Импортируем функцию, которую тестируем
 
 
 @pytest.mark.asyncio

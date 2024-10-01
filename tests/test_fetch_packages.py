@@ -3,7 +3,7 @@ from aiohttp import ClientSession
 from unittest.mock import AsyncMock
 from aiohttp.client_exceptions import ClientError
 
-from compare_packages import fetch_packages  # Импорт функции из твоего модуля
+from compare_pkg.compare_packages import fetch_packages  # Импорт функции из твоего модуля
 
 
 @pytest.mark.asyncio

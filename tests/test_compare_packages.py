@@ -2,7 +2,7 @@ import pytest
 import json
 from click.testing import CliRunner
 from unittest import mock
-from compare_packages import compare_packages  # Импортируй свою функцию из скрипта
+from compare_pkg.compare_packages import compare_packages  # Импортируй свою функцию из скрипта
 
 
 @pytest.fixture

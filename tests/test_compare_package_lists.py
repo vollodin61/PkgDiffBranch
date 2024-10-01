@@ -1,6 +1,6 @@
 import pytest
 
-from compare_packages import compare_package_lists
+from compare_pkg.compare_packages import compare_package_lists
 
 
 @pytest.fixture

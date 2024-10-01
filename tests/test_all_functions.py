@@ -5,7 +5,7 @@ import pytest
 from aiohttp import ClientSession, ClientError
 from click.testing import CliRunner
 
-from compare_packages import compare_packages, fetch_packages
+from compare_pkg.compare_packages import compare_packages, fetch_packages
 
 
 @pytest.fixture
