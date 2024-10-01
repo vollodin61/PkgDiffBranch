@@ -12,8 +12,26 @@ from compare_packages import compare_packages, fetch_packages
 def mock_api_response():
     """Пример mock ответа API для пакетов."""
     return [
-        {"name": "package1", "version": "1.0", "release": "1"},
-        {"name": "package2", "version": "2.0", "release": "1"}
+        {
+            "name": "package1",
+            "epoch": 0,
+            "version": "1.0",
+            "release": "1",
+            "arch": "x86_64",
+            "disttag": "dist1",
+            "buildtime": 1623945600,
+            "source": "package1-source"
+        },
+        {
+            "name": "package2",
+            "epoch": 0,
+            "version": "2.0",
+            "release": "1",
+            "arch": "x86_64",
+            "disttag": "dist1",
+            "buildtime": 1623945600,
+            "source": "package2-source"
+        }
     ]
 
 
