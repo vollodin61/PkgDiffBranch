@@ -81,7 +81,9 @@ def compare_package_lists(packages1: list[dict[str, str]], packages2: list[dict[
 
     for pkg_name in p10_pkgs:
         if pkg_name not in sisyphus_pkgs:
-            diff["in_p10_not_in_sisyphus"].append(pkg_name)
+            # Добавляем название пакета с его версией
+            version = f"{p10_pkgs[pkg_name]['version']}-{p10_pkgs[pkg_name]['release']}"
+            diff["in_p10_not_in_sisyphus"].append(f"{pkg_name}-{version}")
         else:
             p10_pkg = p10_pkgs[pkg_name]
             sisyphus_pkg = sisyphus_pkgs[pkg_name]
@@ -89,10 +91,13 @@ def compare_package_lists(packages1: list[dict[str, str]], packages2: list[dict[
             evr1 = f"{p10_pkg['version']}-{p10_pkg['release']}"
             evr2 = f"{sisyphus_pkg['version']}-{sisyphus_pkg['release']}"
             if rpm.labelCompare(evr1, evr2) < 0:
-                diff["higher_version_in_sisyphus"].append(pkg_name)
+                # Добавляем название пакета с его версией
+                diff["higher_version_in_sisyphus"].append(f"{pkg_name}-{evr2}")
 
     for pkg_name in sisyphus_pkgs:
         if pkg_name not in p10_pkgs:
-            diff["in_sisyphus_not_in_p10"].append(pkg_name)
+            # Добавляем название пакета с его версией
+            version = f"{sisyphus_pkgs[pkg_name]['version']}-{sisyphus_pkgs[pkg_name]['release']}"
+            diff["in_sisyphus_not_in_p10"].append(f"{pkg_name}-{version}")
 
     return diff
