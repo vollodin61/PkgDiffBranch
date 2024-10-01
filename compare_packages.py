@@ -61,3 +61,38 @@ async def get_packages_data(url: str, branch1: str, branch2: str, arch: str) -> 
         packages2 = await fetch_packages(url, session, branch2, arch)
         return packages1, packages2
 
+
+def compare_package_lists(packages1: list[dict[str, str]], packages2: list[dict[str, str]]) -> dict[str, list[str]]:
+    """
+    Сравнивает два списка пакетов.
+
+    :param packages1: Список пакетов первой ветки.
+    :param packages2: Список пакетов второй ветки.
+    :return: Словарь с результатами сравнения.
+    """
+    diff = {
+        "in_p10_not_in_sisyphus": [],
+        "in_sisyphus_not_in_p10": [],
+        "higher_version_in_sisyphus": []
+    }
+
+    sisyphus_pkgs = {pkg['name']: pkg for pkg in packages1}
+    p10_pkgs = {pkg['name']: pkg for pkg in packages2}
+
+    for pkg_name in p10_pkgs:
+        if pkg_name not in sisyphus_pkgs:
+            diff["in_p10_not_in_sisyphus"].append(pkg_name)
+        else:
+            p10_pkg = p10_pkgs[pkg_name]
+            sisyphus_pkg = sisyphus_pkgs[pkg_name]
+            # Сравнение версий с помощью rpm (epoch-version-release)
+            evr1 = f"{p10_pkg['version']}-{p10_pkg['release']}"
+            evr2 = f"{sisyphus_pkg['version']}-{sisyphus_pkg['release']}"
+            if rpm.labelCompare(evr1, evr2) < 0:
+                diff["higher_version_in_sisyphus"].append(pkg_name)
+
+    for pkg_name in sisyphus_pkgs:
+        if pkg_name not in p10_pkgs:
+            diff["in_sisyphus_not_in_p10"].append(pkg_name)
+
+    return diff
