@@ -1,4 +1,8 @@
 aiohttp==3.10.8
 click==8.1.7
+environs==11.0.0
 pytest==8.3.3
+pytest-mock==3.14.0
+pytest-asyncio==0.24.0
 rpm==0.2.0
+setuptools==75.1.0
