@@ -1,4 +1,5 @@
 import pytest
+
 from compare_packages import compare_package_lists
 
 
@@ -10,6 +11,7 @@ def packages_sisyphus():
         {"name": "package2", "version": "2.0", "release": "1"},
         {"name": "package3", "version": "3.0", "release": "1"}
     ]
+
 
 @pytest.fixture
 def packages_p10():
@@ -33,9 +35,9 @@ def test_compare_package_lists(mocker, packages_sisyphus, packages_p10):
 
     # Проверяем результат
     assert result == {
-        "in_p10_not_in_sisyphus": ["package4"],
-        "in_sisyphus_not_in_p10": ["package1"],
-        "higher_version_in_sisyphus": ["package2"]
+        "in_p10_not_in_sisyphus": ["package4-1.0-1"],
+        "in_sisyphus_not_in_p10": ["package1-1.0-1"],
+        "higher_version_in_sisyphus": ["package2-2.0-1"]
     }
 
 
@@ -74,7 +76,7 @@ def test_compare_package_lists_only_in_one_branch(mocker):
     # Проверяем, что пакет присутствует только в ветке Sisyphus
     assert result == {
         "in_p10_not_in_sisyphus": [],
-        "in_sisyphus_not_in_p10": ["package1"],
+        "in_sisyphus_not_in_p10": ["package1-1.0-1"],
         "higher_version_in_sisyphus": []
     }
 
