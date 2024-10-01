@@ -21,16 +21,23 @@ pip install -r requirements.txt
 
 ## Installation
 
-#### Make the script executable and move it to a directory in your PATH:
+#### To install the package and make it available as a command:
 
 ```bash
-chmod +x compare-packages
-sudo cp compare-packages /usr/local/bin/
+pip install .
 ```
 
 ## Usage
-
-#### Now you can run the tool as a standard CLI command to compare packages between two branches:
+### Create a .env file
+#### Create a .env file and add your URL to it, as shown in the example .env_temp file. You can create the file using the following command:
+```bash
+cp .env_temp .env
+```
+#### Then, open the .env file and replace the placeholder with your actual API URL.
+```bash
+nano .env  # Or use your preferred text editor
+```
+### Now you can run the tool as a standard CLI command to compare packages between two branches:
 ```bash
 compare-packages --branch1=sisyphus --branch2=p10 --arch=x86_64
 ```
