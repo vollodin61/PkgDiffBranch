@@ -120,20 +120,21 @@ def compare_packages(url: str, branch1: str, branch2: str, arch: str, output: st
     :param output: Формат вывода (json или файл).
     :param output_file: Опциональный файл для вывода JSON.
     """
+    if output != 'json':
+        print("Unsupported output format. Please use 'json'.")
+        return
+
     try:
         branch1_packages, branch2_packages = asyncio.run(get_packages_data(url, branch1, branch2, arch))
         comparison_result = compare_package_lists(branch1_packages, branch2_packages)
 
-        if output == 'json':
-            result = json.dumps(comparison_result, indent=4)
-            if output_file:
-                with open(output_file, 'w') as f:
-                    f.write(result)
-                print(f"Result written to {output_file}")
-            else:
-                print(result)
+        result = json.dumps(comparison_result, indent=4)
+        if output_file:
+            with open(output_file, 'w') as f:
+                f.write(result)
+            print(f"Result written to {output_file}")
         else:
-            print("Unsupported output format. Please use 'json'.")
+            print(result)
     except Exception as e:
         print(f"Произошла ошибка: {e}")
 
