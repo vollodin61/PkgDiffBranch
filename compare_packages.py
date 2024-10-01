@@ -138,5 +138,9 @@ def compare_packages(url: str, branch1: str, branch2: str, arch: str, output: st
         print(f"Произошла ошибка: {e}")
 
 
-if __name__ == "__main__":
+def main():
     compare_packages()
+
+
+if __name__ == "__main__":
+    main()
