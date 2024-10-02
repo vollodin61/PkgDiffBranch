@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import asyncio
 import json
+import os
+from datetime import datetime
 from typing import Optional
 
 import click
@@ -12,6 +14,7 @@ env = Env()
 env.read_env()
 
 API_URL = env("API_URL")
+ARCH_LIST = env("ARCH_LIST").split(", ")
 
 
 async def fetch_packages(url: str, session: ClientSession, branch: str, arch: str = "x86_64") -> list[dict[str, str]]:
@@ -34,7 +37,7 @@ async def fetch_packages(url: str, session: ClientSession, branch: str, arch: st
                     data = await response.json()
                     return data.get("packages", [])
                 else:
-                    print(f"Ошибка: статус {response.status}")
+                    print(f"Ошибка: статус {response.status}, {response.reason}")
                     return []
         except ClientError as e:
             print(f"Попытка {attempt + 1}: ошибка соединения: {e.__repr__()}")
@@ -106,37 +109,64 @@ def compare_package_lists(packages1: list[dict[str, str]], packages2: list[dict[
 @click.option('--url', default=API_URL, help='Base API URL.')
 @click.option('--branch1', default='sisyphus', help='First branch to compare.')
 @click.option('--branch2', default='p10', help='Second branch to compare.')
-@click.option('--arch', default='x86_64', help='Package architecture to filter.')
-@click.option('--output', default='json', help='Output format (json or file).')
-@click.option('--output-file', default=None, type=click.Path(), help='Optional output to a JSON file.')
-def compare_packages(url: str, branch1: str, branch2: str, arch: str, output: str, output_file: Optional[str]):
+@click.option('--arch', default=None,
+              help='Package architectures to filter (comma-separated). If omitted, all architectures from ARCH_LIST will be used.')
+@click.option('--output', default='file',
+              help='Output format: "file" to save results to a file, or "screen" to print to the console.')
+@click.option('--output-folder', default=None, type=click.Path(),
+              help='Optional output folder for saving files (defaults to current directory).')
+def compare_packages(url: str, branch1: str, branch2: str, arch: Optional[str], output: str,
+                     output_folder: Optional[str]):
     """
-    Создание cli-утилиты для сравнения пакетов между двумя ветвями.
+    CLI tool to compare packages between two branches with options for architecture and output format.
 
-    :param url: Базовый URL для API.
-    :param branch1: Первая ветка для сравнения.
-    :param branch2: Вторая ветка для сравнения.
-    :param arch: Архитектура пакетов.
-    :param output: Формат вывода (json или файл).
-    :param output_file: Опциональный файл для вывода JSON.
+    :param url: Base API URL.
+    :param branch1: First branch to compare.
+    :param branch2: Second branch to compare.
+    :param arch: Package architectures to filter (comma-separated). If omitted, all architectures from ARCH_LIST will be used.
+    :param output: Output format: "file" or "screen".
+    :param output_folder: Optional folder to save output files.
     """
-    if output != 'json':
-        print("Unsupported output format. Please use 'json'.")
+    # Обрабатываем архитектуры: либо все из ARCH_LIST, либо указанные через опцию
+    if arch:
+        arch_list = [a.strip() for a in arch.split(",")]
+    else:
+        arch_list = ARCH_LIST
+
+    # Проверка допустимого формата вывода
+    if output not in ['file', 'screen']:
+        print("Unsupported output format. Please use 'file' or 'screen'.")
         return
 
-    try:
-        branch1_packages, branch2_packages = asyncio.run(get_packages_data(url, branch1, branch2, arch))
-        comparison_result = compare_package_lists(branch1_packages, branch2_packages)
+    # Устанавливаем директорию для сохранения файлов (если не указана, используется текущая директория)
+    if not output_folder:
+        output_folder = os.getcwd()
 
-        result = json.dumps(comparison_result, indent=4)
-        if output_file:
-            with open(output_file, 'w') as f:
-                f.write(result)
-            print(f"Result written to {output_file}")
-        else:
-            print(result)
+    try:
+        # Обрабатываем каждую архитектуру
+        for architecture in arch_list:
+            branch1_packages, branch2_packages = asyncio.run(get_packages_data(url, branch1, branch2, architecture))
+            comparison_result = compare_package_lists(branch1_packages, branch2_packages)
+
+            # Формируем результат
+            result = json.dumps(comparison_result, indent=4)
+
+            # Если output = screen, выводим на экран
+            if output == 'screen':
+                print(f"Results for architecture {architecture}:\n{result}")
+            else:
+                # Формируем название файла: architecture_timestamp.json
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"{architecture}_{timestamp}.json"
+                filepath = os.path.join(output_folder, filename)
+
+                # Сохраняем результат в файл
+                with open(filepath, 'w') as f:
+                    f.write(result)
+                print(f"Result for architecture {architecture} written to {filepath}")
+
     except Exception as e:
-        print(f"Произошла ошибка: {e}")
+        print(f"An error occurred: {e}")
 
 
 def main():
