@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import pytest
 import json
 from click.testing import CliRunner
@@ -12,13 +14,13 @@ def runner():
 
 @pytest.fixture
 def mock_get_packages_data():
-    with mock.patch('compare_packages.get_packages_data') as mock_data:
+    with mock.patch('compare_pkg.compare_packages.get_packages_data') as mock_data:
         yield mock_data
 
 
 @pytest.fixture
 def mock_compare_package_lists():
-    with mock.patch('compare_packages.compare_package_lists') as mock_compare:
+    with mock.patch('compare_pkg.compare_packages.compare_package_lists') as mock_compare:
         yield mock_compare
 
 
@@ -37,15 +39,28 @@ def test_compare_packages_output_json(runner, mock_get_packages_data, mock_compa
         "higher_version_in_sisyphus": []
     }
 
+    # Вызываем CLI с параметрами
     result = runner.invoke(compare_packages,
-                           ['--url', 'http://example.com', '--branch1', 'sisyphus', '--branch2', 'p10'])
+                           ['--url', 'http://example.com', '--branch1', 'sisyphus', '--branch2', 'p10', '--output',
+                            'screen'])
 
     assert result.exit_code == 0
-    assert json.loads(result.output) == {
-        "in_p10_not_in_sisyphus": ["pkg2-2.0-1"],
-        "in_sisyphus_not_in_p10": ["pkg1-1.0-1"],
-        "higher_version_in_sisyphus": []
-    }
+
+    # Проверяем, что вывод содержит корректные данные
+    expected_output = (
+        '{\n'
+        '    "in_p10_not_in_sisyphus": [\n'
+        '        "pkg2-2.0-1"\n'
+        '    ],\n'
+        '    "in_sisyphus_not_in_p10": [\n'
+        '        "pkg1-1.0-1"\n'
+        '    ],\n'
+        '    "higher_version_in_sisyphus": []\n'
+        '}'
+    )
+
+    # Проверяем, что JSON-часть присутствует в выводе
+    assert expected_output in result.output
 
 
 # Тест записи в файл
@@ -61,13 +76,16 @@ def test_compare_packages_output_file(runner, mock_get_packages_data, mock_compa
         "higher_version_in_sisyphus": []
     }
 
-    output_file = tmp_path / "output.json"
+    output_folder = tmp_path
 
     result = runner.invoke(compare_packages,
-                           ['--url', 'http://example.com', '--branch1', 'sisyphus', '--branch2', 'p10', '--output-file',
-                            str(output_file)])
+                           ['--url', 'http://example.com', '--branch1', 'sisyphus', '--branch2', 'p10', '--output', 'file', '--output-folder',
+                            str(output_folder)])
 
     assert result.exit_code == 0
+    output_file = output_folder / f"x86_64_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    assert output_file.exists()
+
     assert json.loads(output_file.read_text()) == {
         "in_p10_not_in_sisyphus": ["pkg2-2.0-1"],
         "in_sisyphus_not_in_p10": ["pkg1-1.0-1"],
@@ -80,8 +98,7 @@ def test_compare_packages_error_handling(runner, mock_get_packages_data):
     mock_get_packages_data.side_effect = RuntimeError("Ошибка соединения")
 
     result = runner.invoke(compare_packages,
-                           ['--url', 'http://example.com', '--branch1', 'sisyphus', '--branch2', 'p10'])
+                           ['--url', 'http://example.com', '--branch1', 'sisyphus', '--branch2', 'p10', '--output', 'screen'])
 
     assert result.exit_code == 0
-    assert "Произошла ошибка: Ошибка соединения" in result.output
-
+    assert "An error occurred: Ошибка соединения" in result.output

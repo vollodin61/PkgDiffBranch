@@ -28,7 +28,7 @@ def test_compare_package_lists(mocker, packages_sisyphus, packages_p10):
     Тест на корректное сравнение двух списков пакетов.
     """
     # Мокаем функцию labelCompare из rpm, чтобы она корректно сравнивала версии пакетов
-    mocker.patch("compare_packages.rpm.labelCompare", side_effect=lambda evr1, evr2: -1 if evr1 < evr2 else 0)
+    mocker.patch("compare_pkg.compare_packages.rpm.labelCompare", side_effect=lambda evr1, evr2: -1 if evr1 < evr2 else 0)
 
     # Сравниваем пакеты
     result = compare_package_lists(packages_sisyphus, packages_p10)
@@ -46,7 +46,7 @@ def test_compare_package_lists_no_differences(mocker, packages_sisyphus):
     Тест на случай, когда оба списка одинаковы.
     """
     # Мокаем labelCompare для корректного сравнения одинаковых версий
-    mocker.patch("compare_packages.rpm.labelCompare", return_value=0)
+    mocker.patch("compare_pkg.compare_packages.rpm.labelCompare", return_value=0)
 
     # Сравниваем идентичные списки пакетов
     result = compare_package_lists(packages_sisyphus, packages_sisyphus)
@@ -68,7 +68,7 @@ def test_compare_package_lists_only_in_one_branch(mocker):
     packages_p10 = []
 
     # Мокаем labelCompare
-    mocker.patch("compare_packages.rpm.labelCompare", return_value=0)
+    mocker.patch("compare_pkg.compare_packages.rpm.labelCompare", return_value=0)
 
     # Сравниваем пакеты
     result = compare_package_lists(packages_sisyphus, packages_p10)
@@ -89,7 +89,7 @@ def test_compare_package_lists_version_downgrade(mocker):
     packages_p10 = [{"name": "package1", "version": "1.1", "release": "1"}]
 
     # Мокаем labelCompare так, чтобы версия в p10 была выше
-    mocker.patch("compare_packages.rpm.labelCompare", return_value=1)
+    mocker.patch("compare_pkg.compare_packages.rpm.labelCompare", return_value=1)
 
     # Сравниваем пакеты
     result = compare_package_lists(packages_sisyphus, packages_p10)

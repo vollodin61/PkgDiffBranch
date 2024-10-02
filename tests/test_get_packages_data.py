@@ -13,7 +13,7 @@ async def test_get_packages_data_success(mocker):
     mock_packages_branch2 = [{"name": "package2", "version": "2.0", "release": "1"}]
 
     # Мокаем функцию fetch_packages, которая возвращает разные данные для разных веток
-    mocker.patch("compare_packages.fetch_packages", side_effect=[mock_packages_branch1, mock_packages_branch2])
+    mocker.patch("compare_pkg.compare_packages.fetch_packages", side_effect=[mock_packages_branch1, mock_packages_branch2])
 
     # Вызываем тестируемую функцию
     packages1, packages2 = await get_packages_data("http://test-url.com", "branch1", "branch2", "x86_64")
@@ -31,7 +31,7 @@ async def test_get_packages_data_fetch_error(mocker):
     mock_packages_branch1 = [{"name": "package1", "version": "1.0", "release": "1"}]
 
     # Мокаем fetch_packages, первая ветка возвращает данные, вторая - выбрасывает ошибку
-    mocker.patch("compare_packages.fetch_packages",
+    mocker.patch("compare_pkg.compare_packages.fetch_packages",
                  side_effect=[mock_packages_branch1, ClientError("Connection error")])
 
     # Вызываем тестируемую функцию и проверяем, что ошибка пробрасывается
@@ -48,7 +48,7 @@ async def test_get_packages_data_architecture_handling(mocker):
     mock_packages_branch2 = [{"name": "package2", "version": "2.0", "release": "1"}]
 
     # Мокаем fetch_packages, чтобы убедиться, что параметр арх передается правильно
-    fetch_mock = mocker.patch("compare_packages.fetch_packages",
+    fetch_mock = mocker.patch("compare_pkg.compare_packages.fetch_packages",
                               side_effect=[mock_packages_branch1, mock_packages_branch2])
 
     # Вызываем тестируемую функцию с архитектурой arm64
