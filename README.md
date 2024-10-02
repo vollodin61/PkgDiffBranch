@@ -53,9 +53,10 @@ compare-packages --branch1=sisyphus --branch2=p10 --arch=x86_64
     --url: Base API URL (default: https://rdb.altlinux.org/api/export/branch_binary_packages).
     --branch1: First branch to compare (default: sisyphus).
     --branch2: Second branch to compare (default: p10).
-    --arch: Package architecture (default: x86_64).
-    --output: Output format (default: json).
-    --output-file: Optional output to a file (if specified, the result is saved to a file).
+    --arch: Package architectures to filter (comma-separated). If omitted, all architectures from ARCH_LIST will be used.
+    --output: Output format: "file" or "screen" (default: file)
+    --output_folder: Optional folder to save output files.
+    --archive: Optional archive format to save all results (e.g., zip, tar.gz, tar.bz2).
 
 ### Example
 ```bash
