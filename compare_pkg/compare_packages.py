@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 import asyncio
 import json
+import io
+import os
+import tarfile
+from datetime import datetime
 from typing import Optional
+from zipfile import ZipFile
 
 import click
 import rpm
@@ -12,6 +17,7 @@ env = Env()
 env.read_env()
 
 API_URL = env("API_URL")
+ARCH_LIST = env("ARCH_LIST").split(", ")
 
 
 async def fetch_packages(url: str, session: ClientSession, branch: str, arch: str = "x86_64") -> list[dict[str, str]]:
@@ -29,19 +35,24 @@ async def fetch_packages(url: str, session: ClientSession, branch: str, arch: st
     retries = 3
     for attempt in range(retries):
         try:
+            print(f"Запрос к API: {url} с параметрами: {params}")
+
             async with session.get(url, params=params) as response:
                 if response.status == 200:
                     data = await response.json()
                     return data.get("packages", [])
+                elif response.status == 400:
+                    print(f"Пропускаем архитектуру {arch}: статус 400, {response.reason}")
+                    return []  # Пропускаем текущую архитектуру
                 else:
-                    print(f"Ошибка: статус {response.status}")
+                    print(f"Ошибка: статус {response.status}, причина: {response.reason}, параметры: {params}")
                     return []
         except ClientError as e:
-            print(f"Попытка {attempt + 1}: ошибка соединения: {e.__repr__()}")
+            print(f"Попытка {attempt + 1}: ошибка соединения: {e.__repr__()} с параметрами: {params}")
             if attempt < retries - 1:
-                await asyncio.sleep(5)  # Изменено на асинхронный sleep
+                await asyncio.sleep(5)
             else:
-                raise RuntimeError(f"Не удалось установить соединение после {retries} попыток")
+                raise RuntimeError(f"Не удалось установить соединение после {retries} попыток для {params}")
 
 
 async def get_packages_data(url: str, branch1: str, branch2: str, arch: str) -> tuple[
@@ -106,37 +117,102 @@ def compare_package_lists(packages1: list[dict[str, str]], packages2: list[dict[
 @click.option('--url', default=API_URL, help='Base API URL.')
 @click.option('--branch1', default='sisyphus', help='First branch to compare.')
 @click.option('--branch2', default='p10', help='Second branch to compare.')
-@click.option('--arch', default='x86_64', help='Package architecture to filter.')
-@click.option('--output', default='json', help='Output format (json or file).')
-@click.option('--output-file', default=None, type=click.Path(), help='Optional output to a JSON file.')
-def compare_packages(url: str, branch1: str, branch2: str, arch: str, output: str, output_file: Optional[str]):
+@click.option('--arch', default=None,
+              help='Package architectures to filter (comma-separated). If omitted, all architectures from ARCH_LIST will be used.')
+@click.option('--output', default='file',
+              help='Output format: "file" to save results to a file, or "screen" to print to the console.')
+@click.option('--output-folder', default=None, type=click.Path(),
+              help='Optional output folder for saving files (defaults to current directory).')
+@click.option('--archive', default=None,
+              help='Optional archive format to save all results (e.g., zip, tar.gz, tar.bz2).')
+def compare_packages(url: str, branch1: str, branch2: str, arch: Optional[str], output: str,
+                     output_folder: Optional[str], archive: Optional[str]):
     """
-    Создание cli-утилиты для сравнения пакетов между двумя ветвями.
+    CLI tool to compare packages between two branches with options for architecture, output format, and archiving.
 
-    :param url: Базовый URL для API.
-    :param branch1: Первая ветка для сравнения.
-    :param branch2: Вторая ветка для сравнения.
-    :param arch: Архитектура пакетов.
-    :param output: Формат вывода (json или файл).
-    :param output_file: Опциональный файл для вывода JSON.
+    :param url: Base API URL.
+    :param branch1: First branch to compare.
+    :param branch2: Second branch to compare.
+    :param arch: Package architectures to filter (comma-separated). If omitted, all architectures from ARCH_LIST will be used.
+    :param output: Output format: "file" or "screen".
+    :param output_folder: Optional folder to save output files.
+    :param archive: Optional archive format to save all results (e.g., zip, tar.gz, tar.bz2).
     """
-    if output != 'json':
-        print("Unsupported output format. Please use 'json'.")
+    # Обрабатываем архитектуры: либо все из ARCH_LIST, либо указанные через опцию
+    if arch:
+        arch_list = [a.strip() for a in arch.split(",")]
+    else:
+        arch_list = ARCH_LIST
+
+    # Проверка допустимого формата вывода
+    if output not in ['file', 'screen']:
+        print("Unsupported output format. Please use 'file' or 'screen'.")
         return
 
-    try:
-        branch1_packages, branch2_packages = asyncio.run(get_packages_data(url, branch1, branch2, arch))
-        comparison_result = compare_package_lists(branch1_packages, branch2_packages)
+    # Устанавливаем директорию для сохранения файлов (если не указана, используется текущая директория)
+    if not output_folder:
+        output_folder = os.getcwd()
 
-        result = json.dumps(comparison_result, indent=4)
-        if output_file:
-            with open(output_file, 'w') as f:
-                f.write(result)
-            print(f"Result written to {output_file}")
+    # Проверка допустимого формата архива
+    supported_archives = ['zip', 'tar.gz', 'tar.bz2']
+    if archive and archive not in supported_archives:
+        print(f"Unsupported archive format: {archive}. Supported formats are: {', '.join(supported_archives)}.")
+        return
+
+    # Устанавливаем время для генерации файлов/архивов
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    try:
+        # Функция для получения данных сравнения для каждой архитектуры
+        def get_comparison_result(architecture: str) -> str:
+            branch1_packages, branch2_packages = asyncio.run(
+                get_packages_data(url, branch1, branch2, architecture))
+            comparison_result = compare_package_lists(branch1_packages, branch2_packages)
+            return json.dumps(comparison_result, indent=4)
+
+        # Если указан архив, то сохраняем сразу в архив
+        if archive:
+            archive_path = os.path.join(output_folder, f"packages_comparison_{timestamp}.{archive}")
+
+            if archive == "zip":
+                with ZipFile(archive_path, 'w') as zipf:
+                    for architecture in arch_list:
+                        result = get_comparison_result(architecture)
+                        json_filename = f"{architecture}_{timestamp}.json"
+                        zipf.writestr(json_filename, result)
+                print(f"Results archived to {archive_path}")
+
+            elif archive in ["tar.gz", "tar.bz2"]:
+                mode = 'w:gz' if archive == "tar.gz" else 'w:bz2'
+                with tarfile.open(archive_path, mode) as tar:
+                    for architecture in arch_list:
+                        result = get_comparison_result(architecture)
+                        json_filename = f"{architecture}_{timestamp}.json"
+                        tarinfo = tarfile.TarInfo(name=json_filename)
+                        tarinfo.size = len(result)
+                        tar.addfile(tarinfo, io.BytesIO(result.encode('utf-8')))
+                print(f"Results archived to {archive_path}")
+
         else:
-            print(result)
+            # Если архивация не указана, обрабатываем результат стандартно
+            for architecture in arch_list:
+                result = get_comparison_result(architecture)
+
+                # Если output = screen, выводим на экран
+                if output == 'screen':
+                    print(f"Results for architecture {architecture}:\n{result}")
+                else:
+                    # Формируем название файла: architecture_timestamp.json
+                    filename = f"{architecture}_{timestamp}.json"
+                    filepath = os.path.join(output_folder, filename)
+
+                    # Сохраняем результат в файл
+                    with open(filepath, 'w') as f:
+                        f.write(result)
+                    print(f"Result for architecture {architecture} written to {filepath}")
+
     except Exception as e:
-        print(f"Произошла ошибка: {e}")
+        print(f"An error occurred: {e}")
 
 
 def main():
